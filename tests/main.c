@@ -1,5 +1,5 @@
 #define HELPERS_STRIP_PREFIX
-#include "helpers.h"
+#include "../helpers.h"
 
 
 int main() {

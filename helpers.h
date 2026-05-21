@@ -1,6 +1,6 @@
 #ifndef helpers_h
 #define helpers_h
-#include <cstring>
+#include <string.h>
 #include <stdio.h>
 
 #ifndef HELPERS_FREE
@@ -83,7 +83,7 @@ typedef struct {
 HELPER_FN HelperString helpers_string_from_cstr(const char*);
 HELPER_FN bool helpers_read_file(const char* path, HelperString* out);
 
-#define HELPERS_IMPLEMENTATION
+//#define HELPERS_IMPLEMENTATION
 #ifdef HELPERS_IMPLEMENTATION
 HELPER_FN HelperString helpers_string_from_cstr(const char* cstr) {
   HelperString str = {0};
@@ -110,7 +110,7 @@ HELPER_FN bool helpers_read_file(const char* path, HelperString* out) {
 }
 #endif
 
-#define HELPERS_STRIP_PREFIX
+//#define HELPERS_STRIP_PREFIX
 #ifdef HELPERS_STRIP_PREFIX
 #define arr_reserve helpers_arr_reserve
 #define arr_append helpers_arr_append
