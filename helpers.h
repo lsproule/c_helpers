@@ -13,7 +13,7 @@
 #ifndef HELPER_ASSERT
 #include <assert.h>
 #define HELPER_ASSERT assert
-#endif /* NOB_ASSERT */
+#endif /* HELPER_ASSERT */
 
 #ifdef __cplusplus
 #define HELPERS_DECLTYPE_CAST(T) (decltype(T))
