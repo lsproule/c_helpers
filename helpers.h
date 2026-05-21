@@ -102,7 +102,7 @@ HELPER_FN bool helpers_dir_exists(const char *path);
 HELPER_FN bool helpers_create_dir(const char *path);
 HELPER_FN bool helpers_write_file(const char *path, HelperStringView data);
 HELPER_FN bool helpers_copy_file(const char *src_path, const char *dst_path);
-HELPER_FN HelperStringView nob_temp_file_ext(const char *path);
+HELPER_FN HelperStringView helpers_temp_file_ext(const char *path);
 
 #define HELPERS_IMPLEMENTATION
 #ifdef HELPERS_IMPLEMENTATION
@@ -276,7 +276,7 @@ HELPER_FN bool helpers_copy_file(const char *src_path, const char *dst_path) {
   return true;
 }
 
-HELPER_FN HelperStringView nob_temp_file_ext(const char *path) {
+HELPER_FN HelperStringView helpers_temp_file_ext(const char *path) {
 #ifndef _WIN32
   if (!path)
     path = ""; // Treating NULL as empty.
@@ -322,7 +322,7 @@ HELPER_FN HelperStringView nob_temp_file_ext(const char *path) {
 #define create_dir helpers_create_dir
 #define write_file helpers_write_file
 #define copy_file helpers_copy_file
-#define temp_file_ext nob_temp_file_ext
+#define temp_file_ext helpers_temp_file_ext
 #endif
 
 #endif /* helpers_h */
