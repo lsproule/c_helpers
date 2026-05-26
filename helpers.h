@@ -474,6 +474,7 @@ HELPER_FN HelperStringView helpers_temp_file_ext(const char *path) {
 #define temp_file_ext helpers_temp_file_ext
 #define merge_sort helpers_merge_sort
 #define reverse_int helpers_reverse_int
+#define for_each helpers_for_each
 #endif
 
 #endif /* helpers_h */
