@@ -1,4 +1,5 @@
 #define HELPERS_STRIP_PREFIX
+#define HELPERS_IMPLEMENTATION
 #include "../helpers.h"
 
 

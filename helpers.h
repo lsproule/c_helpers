@@ -22,7 +22,7 @@
 #endif
 
 #ifndef HELPER_FN
-#define HELPER_FN // static inline
+#define HELPER_FN //static inline
 #endif
 
 #ifndef HELPERS_REALLOC
@@ -73,6 +73,11 @@ static size_t helpers_temp_size = 0;
 #define helpers_arr_size(arr) ((arr).count)
 #define helpers_arr_capacity(arr) ((arr).capacity)
 
+#define helpers_for_each(item, array)                                          \
+  for (count = helpers_arr_size(array), i = 0; i < count; i++)                 \
+    for (item = (array).items[i]; item != NULL;)
+
+
 // String types
 typedef struct {
   char *items;
@@ -103,12 +108,148 @@ HELPER_FN bool helpers_create_dir(const char *path);
 HELPER_FN bool helpers_write_file(const char *path, HelperStringView data);
 HELPER_FN bool helpers_copy_file(const char *src_path, const char *dst_path);
 HELPER_FN HelperStringView helpers_temp_file_ext(const char *path);
+HELPER_FN void *helper_temp_alloc(size_t requested_size);
+HELPER_FN void helpers_merge_sort(void *arr, size_t count, ...);
 
 #define HELPERS_IMPLEMENTATION
 #ifdef HELPERS_IMPLEMENTATION
 // HELPERS IMPLEMENTATION
 
-// String helpers
+typedef int (*CompareFn)(const void *a, const void *b);
+
+typedef struct {
+  CompareFn compare;
+} HelpersSortArgs;
+
+HELPER_FN int helpers_compare_int(const void *a, const void *b) {
+  int av = *(const int *)a;
+  int bv = *(const int *)b;
+  return (av > bv) - (av < bv);
+}
+
+HELPER_FN int helpers_compare_string(const void *a, const void *b) {
+  const char *av = *(const char **)a;
+  const char *bv = *(const char **)b;
+  return strcmp(av, bv);
+}
+
+HELPER_FN int helpers_compare_float(const void *a, const void *b) {
+  float av = *(const float *)a;
+  float bv = *(const float *)b;
+  return (av > bv) - (av < bv);
+}
+
+HELPER_FN int helpers_compare_double(const void *a, const void *b) {
+  double av = *(const double *)a;
+  double bv = *(const double *)b;
+  return (av > bv) - (av < bv);
+}
+HELPER_FN int helpers_compare_helper_string(const void *a, const void *b) {
+  const HelperString *av = (const HelperString *)a;
+  const HelperString *bv = (const HelperString *)b;
+
+  size_t min_len = av->count < bv->count ? av->count : bv->count;
+  int cmp = memcmp(av->items, bv->items, min_len);
+  if (cmp != 0) {
+    return cmp;
+  }
+  return (av->count > bv->count) - (av->count < bv->count);
+}
+
+#define HELPERS_DEFAULT_COMPARE(arr)                                           \
+  _Generic(*(arr),                                                             \
+      int: helpers_compare_int,                                                \
+      float: helpers_compare_float,                                            \
+      double: helpers_compare_double,                                          \
+      char *: helpers_compare_string,                                          \
+      const char *: helpers_compare_string,                                    \
+      HelperString: helpers_compare_helper_string,                             \
+      default: NULL)
+
+#define helpers_merge_sort(arr, count, ...)                                    \
+  ({                                                                           \
+    HelpersSortArgs _args = {__VA_ARGS__};                                     \
+                                                                               \
+    if (_args.compare == NULL)                                                 \
+      _args.compare = HELPERS_DEFAULT_COMPARE(arr);                            \
+                                                                               \
+    HELPER_ASSERT(_args.compare != NULL && "No comparator for type");          \
+                                                                               \
+    helpers_merge_sort_(arr, sizeof(*(arr)), 0, (count) - 1, _args);           \
+  })
+
+HELPER_FN void helpers_merge_(void *base, size_t elem_size, int l, int mid, int r,
+                    HelpersSortArgs args) {
+  char *arr = (char *)base;
+
+  int idx1 = l;
+  int idx2 = mid + 1;
+
+  int total = r - l + 1;
+
+  char *temp = (char *)malloc(total * elem_size);
+
+  int temp_idx = 0;
+
+  while (idx1 <= mid && idx2 <= r) {
+    void *a = arr + (idx1 * elem_size);
+    void *b = arr + (idx2 * elem_size);
+
+    if (args.compare(a, b) <= 0) {
+      memcpy(temp + (temp_idx * elem_size), a, elem_size);
+      idx1++;
+    } else {
+      memcpy(temp + (temp_idx * elem_size), b, elem_size);
+      idx2++;
+    }
+
+    temp_idx++;
+  }
+
+  while (idx1 <= mid) {
+    memcpy(temp + (temp_idx * elem_size), arr + (idx1 * elem_size), elem_size);
+
+    idx1++;
+    temp_idx++;
+  }
+
+  while (idx2 <= r) {
+    memcpy(temp + (temp_idx * elem_size), arr + (idx2 * elem_size), elem_size);
+
+    idx2++;
+    temp_idx++;
+  }
+
+  memcpy(arr + (l * elem_size), temp, total * elem_size);
+
+  free(temp);
+}
+
+void helpers_merge_sort_(void *base, size_t elem_size, int l, int r,
+                         HelpersSortArgs args) {
+  if (l >= r)
+    return;
+
+  int mid = l + (r - l) / 2;
+
+  helpers_merge_sort_(base, elem_size, l, mid, args);
+  helpers_merge_sort_(base, elem_size, mid + 1, r, args);
+
+  helpers_merge_(base, elem_size, l, mid, r, args);
+}
+
+HELPER_FN int helpers_reverse_int(const void *a, const void *b) {
+  int av = *(const int *)a;
+  int bv = *(const int *)b;
+
+  return (bv > av) - (bv < av);
+}
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
 
 HELPER_FN void *helper_temp_alloc(size_t requested_size) {
   size_t word_size = sizeof(uintptr_t);
@@ -255,6 +396,14 @@ HELPER_FN bool helpers_write_file(const char *path, HelperStringView data) {
   fclose(file);
   return written == data.count;
 }
+HELPER_FN HelperString helpers_string_from_cstr(const char *cstr) {
+  HelperString str = {0};
+  size_t len = strlen(cstr);
+  helpers_arr_reserve(&str, len);
+  memcpy(str.items, cstr, len);
+  str.count = len;
+  return str;
+}
 
 HELPER_FN bool helpers_copy_file(const char *src_path, const char *dst_path) {
   FILE *src = fopen(src_path, "rb");
@@ -298,7 +447,7 @@ HELPER_FN HelperStringView helpers_temp_file_ext(const char *path) {
 }
 #endif /* HELPERS_IMPLEMENTATION */
 
-#define HELPERS_STRIP_PREFIX
+//#define HELPERS_STRIP_PREFIX
 #ifdef HELPERS_STRIP_PREFIX
 #define arr_reserve helpers_arr_reserve
 #define arr_append helpers_arr_append
@@ -323,6 +472,8 @@ HELPER_FN HelperStringView helpers_temp_file_ext(const char *path) {
 #define write_file helpers_write_file
 #define copy_file helpers_copy_file
 #define temp_file_ext helpers_temp_file_ext
+#define merge_sort helpers_merge_sort
+#define reverse_int helpers_reverse_int
 #endif
 
 #endif /* helpers_h */

@@ -1,7 +1,7 @@
 TEST_DIR  ?= tests
 BUILD_DIR ?= build
 CC        ?= cc
-CFLAGS    ?= -I. -Wall -Wextra -g
+CFLAGS    ?= -I. -Wall -Wextra -ggdb
 
 SINGLE_SRCS := $(wildcard $(TEST_DIR)/*.c)
 SINGLE_BINS := $(patsubst $(TEST_DIR)/%.c,$(BUILD_DIR)/%,$(SINGLE_SRCS))
