@@ -22,7 +22,7 @@
 #endif
 
 #ifndef HELPER_FN
-#define HELPER_FN //static inline
+#define HELPER_FN // static inline
 #endif
 
 #ifndef HELPERS_REALLOC
@@ -76,7 +76,6 @@ static size_t helpers_temp_size = 0;
 #define helpers_for_each(item, array)                                          \
   for (count = helpers_arr_size(array), i = 0; i < count; i++)                 \
     for (item = (array).items[i]; item != NULL;)
-
 
 // String types
 typedef struct {
@@ -178,8 +177,8 @@ HELPER_FN int helpers_compare_helper_string(const void *a, const void *b) {
     helpers_merge_sort_(arr, sizeof(*(arr)), 0, (count) - 1, _args);           \
   })
 
-HELPER_FN void helpers_merge_(void *base, size_t elem_size, int l, int mid, int r,
-                    HelpersSortArgs args) {
+HELPER_FN void helpers_merge_(void *base, size_t elem_size, int l, int mid,
+                              int r, HelpersSortArgs args) {
   char *arr = (char *)base;
 
   int idx1 = l;
@@ -244,12 +243,6 @@ HELPER_FN int helpers_reverse_int(const void *a, const void *b) {
 
   return (bv > av) - (bv < av);
 }
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-
 
 HELPER_FN void *helper_temp_alloc(size_t requested_size) {
   size_t word_size = sizeof(uintptr_t);
@@ -445,9 +438,123 @@ HELPER_FN HelperStringView helpers_temp_file_ext(const char *path) {
   return helpers_str_view_from_parts(ext, strlen(ext));
 #endif // _WIN32
 }
+
+HELPER_FN bool helpers_rm_file(const char *path) { return remove(path) == 0; }
+
+typedef struct {
+  bool recursive;
+} HelperDirOptions;
+
+#ifndef _WIN32
+#include <dirent.h>
+#endif
+
+HELPER_FN bool _helpers_rmdir(const char *path, HelperDirOptions opts) {
+  if (opts.recursive) {
+#ifdef _WIN32
+    // Build a "path\*" search pattern and delete children first.
+    char pattern[MAX_PATH];
+    snprintf(pattern, sizeof(pattern), "%s\\*", path);
+    WIN32_FIND_DATAA find;
+    HANDLE handle = FindFirstFileA(pattern, &find);
+    if (handle != INVALID_HANDLE_VALUE) {
+      do {
+        if (strcmp(find.cFileName, ".") == 0 ||
+            strcmp(find.cFileName, "..") == 0)
+          continue;
+        char child[MAX_PATH];
+        snprintf(child, sizeof(child), "%s\\%s", path, find.cFileName);
+        if (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+          _helpers_rmdir(child, opts);
+        } else {
+          helpers_rm_file(child);
+        }
+      } while (FindNextFileA(handle, &find));
+      FindClose(handle);
+    }
+#else
+    DIR *dir = opendir(path);
+    if (dir) {
+      struct dirent *entry;
+      while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+          continue;
+        char child[4096];
+        snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
+        if (helpers_dir_exists(child)) {
+          _helpers_rmdir(child, opts);
+        } else {
+          helpers_rm_file(child);
+        }
+      }
+      closedir(dir);
+    }
+#endif
+  }
+#ifdef _WIN32
+  return RemoveDirectoryA(path) != 0;
+#else
+  return remove(path) == 0;
+#endif
+}
+
+#define helpers_rmdir(path, ...)                                               \
+  _helpers_rmdir(path, (HelperDirOptions){.recursive = false, __VA_ARGS__})
+
+bool _helpers_mkdir(const char *path, HelperDirOptions opts) {
+
+#ifdef _WIN32
+  if (opts.recursive) {
+    char temp[MAX_PATH];
+    size_t len = snprintf(temp, sizeof(temp), "%s", path);
+    if (len == 0 || len >= sizeof(temp)) {
+      return false; // Path too long
+    }
+    for (size_t i = 1; i < len; i++) {
+      if (temp[i] == '\\' || temp[i] == '/') {
+        char saved = temp[i];
+        temp[i] = '\0';
+        if (!helpers_create_dir(temp)) {
+          temp[i] = saved;
+          return false;
+        }
+        temp[i] = saved;
+      }
+    }
+  }
+  return CreateDirectoryA(path, NULL) || GetLastError() == ERROR_ALREADY_EXISTS;
+#else
+  if (opts.recursive) {
+    char temp[4096];
+    size_t len = snprintf(temp, sizeof(temp), "%s", path);
+    if (len == 0 || len >= sizeof(temp)) {
+      return false; // Path too long
+    }
+    for (size_t i = 1; i < len; i++) {
+      if (temp[i] == '/' || temp[i] == '\\') {
+        char saved = temp[i];
+        temp[i] = '\0';
+        if (!helpers_create_dir(temp)) {
+          temp[i] = saved;
+          return false;
+        }
+        temp[i] = saved;
+      }
+    }
+  }
+  struct stat st;
+  if (stat(path, &st) == 0) {
+    return S_ISDIR(st.st_mode);
+  }
+  return mkdir(path, 0755) == 0 || errno == EEXIST;
+#endif
+}
+#define helpers_mkdir(path, ...)                                               \
+  _helpers_mkdir(path, (HelperDirOptions){.recursive = false, __VA_ARGS__})
+
 #endif /* HELPERS_IMPLEMENTATION */
 
-//#define HELPERS_STRIP_PREFIX
+// #define HELPERS_STRIP_PREFIX
 #ifdef HELPERS_STRIP_PREFIX
 #define arr_reserve helpers_arr_reserve
 #define arr_append helpers_arr_append
@@ -475,6 +582,10 @@ HELPER_FN HelperStringView helpers_temp_file_ext(const char *path) {
 #define merge_sort helpers_merge_sort
 #define reverse_int helpers_reverse_int
 #define for_each helpers_for_each
+#define rm_file helpers_rm_file
+#define rmdir helpers_rmdir
+#define mkdir helpers_mkdir
+#define str_from_cstr helpers_str_from_cstr
 #endif
 
 #endif /* helpers_h */

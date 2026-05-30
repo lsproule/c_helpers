@@ -47,12 +47,14 @@ int main() {
     arr_append(&arr_float, (float)(i + rand_num) / 10.1f);
 
     char buffer[20];
+
     snprintf(buffer, sizeof(buffer), "penguino: %d", i + rand_num);
     snprintf(buffer, sizeof(buffer), "penguino: %d", i + rand_num);
 
     Pingu pingu = {0};
     pingu.edad = i + rand_num;
     pingu.nombre = malloc(20);
+
     snprintf(pingu.nombre, sizeof(pingu.nombre[0]) * 20, "penguino: %d",
              i + rand_num);
 
